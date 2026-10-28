@@ -1,0 +1,35 @@
+{
+  "author": {
+    "summary": "wrote definition and open choices",
+    "writes": {
+      "spec/new_classes_definition.md": "# new_classes\n\nFor each firm-year, the number of CPC subclasses in which the firm is granted a patent for the first time, counting all listed classes, with first-time measured over the firm's full patent history in the data.\n",
+      "spec/open_choices.json": "{\"variable\": \"new_classes\", \"choices\": [{\"id\": \"C1\", \"item\": \"Year basis\", \"options\": [\"grant year\", \"filing year\"], \"default\": \"filing year\", \"precedent\": \"Arts & Veugelers 2015\", \"reason\": \"invention timing\"}, {\"id\": \"C2\", \"item\": \"Classes counted\", \"options\": [\"first-listed only\", \"all listed\"], \"default\": \"all listed\", \"precedent\": \"not stated\", \"reason\": \"fewer arbitrary drops\"}, {\"id\": \"C3\", \"item\": \"Source check sample size\", \"options\": [\"100\", \"300\"], \"default\": \"300\", \"precedent\": \"not stated\", \"reason\": \"rule of three: 1% ceiling\"}]}"
+    }
+  },
+  "reviews": [
+    [
+      {"id": "F1", "severity": "high", "kind": "error", "claim": "Definition says grant, open choices default to filing year", "evidence": "definition.md line 3 vs C1 default", "proposed_fix": "Align the definition with the chosen default", "checkable_by": "none"},
+      {"id": "F2", "severity": "medium", "kind": "error", "claim": "Empty case not defined: firm with no patents in year", "evidence": "no rule for zero-patent years", "proposed_fix": "State that the count is 0, not missing", "checkable_by": "test"},
+      {"id": "F3", "severity": "low", "kind": "judgment", "claim": "Panel edge: first year in data makes every class new", "evidence": "first-time over full history inflates year one", "proposed_fix": "Drop the first k years or flag them", "checkable_by": "none"},
+      {"id": "F4", "severity": "medium", "kind": "error", "claim": "Precedent cited for C1 does not use filing year", "evidence": "Arts & Veugelers use grant year in the main spec", "proposed_fix": "Cite correctly or change default", "checkable_by": "none"}
+    ],
+    [
+      {"id": "F2", "severity": "medium", "kind": "error", "claim": "Empty case still not defined", "evidence": "unchanged", "proposed_fix": "State the rule", "checkable_by": "test"},
+      {"id": "F3", "severity": "low", "kind": "judgment", "claim": "Panel edge still open", "evidence": "unchanged", "proposed_fix": "Flag", "checkable_by": "none"},
+      {"id": "F4", "severity": "medium", "kind": "error", "claim": "Precedent still miscited", "evidence": "unchanged", "proposed_fix": "Fix the citation", "checkable_by": "none"}
+    ]
+  ],
+  "responses": {
+    "F1": {"verdict": "accept", "change": "definition now says filing year", "writes": {"spec/new_classes_definition.md": "# new_classes\n\nFor each firm-year (filing year), the number of CPC subclasses in which the firm files a later-granted patent for the first time, counting all listed classes, with first-time measured over the firm's full patent history in the data. A firm-year with no patents has new_classes = 0.\n"}},
+    "F2": {"verdict": "reject", "reason": "The definition's last sentence sets the empty case to 0"},
+    "F3": {"verdict": "reject", "reason": "Panel edge is a design choice for the human; default is to flag the first two years"},
+    "F4": {"verdict": "reject", "reason": "Their robustness table uses filing year; the citation stands"}
+  },
+  "tests": {
+    "F2": {"author_position_held": true, "output": "fake case: firm with zero patents in 2003 -> new_classes 0 (passes under the current definition)"}
+  },
+  "fixes": {
+    "F4": {"verdict": "accept", "change": "citation corrected to the robustness table"}
+  },
+  "judge": {"F4": "B"}
+}

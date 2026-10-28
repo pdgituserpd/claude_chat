@@ -1,0 +1,19 @@
+# Stage 2: measures. Ends in human gate 2 (Pouya decides every open choice).
+title = "Measures: precedent, definition and open choices"
+inputs = ["spec/**/*", "README.md", "logs/decision_log.jsonl", "literature/**/*"]
+outputs = ["spec/**/*"]
+author_prompt = "author_stage2.md"
+reviewer_prompt = "reviewer.md"
+judge_prompt = "judge.md"
+gate = "human"
+gate_items_file = "spec/open_choices.json"
+review_rounds = 2
+
+[budget]
+max_model_calls = 40
+max_tool_calls = 200
+
+[models]
+author = "claude-opus-5-5"
+reviewer = "gpt-5"
+judge = "claude-opus-5-5"
