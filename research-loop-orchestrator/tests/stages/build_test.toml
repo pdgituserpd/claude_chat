@@ -1,0 +1,77 @@
+title = "Build test (python stand-in for R)"
+gate_no = 2
+reviewer_prompt = "reviewer_code.md"
+judge_prompt = "judge.md"
+review_rounds = 1
+
+[[step]]
+name = "fast_build"
+kind = "task"
+role = "author"
+prompt = "author_fast_build.md"
+inputs = ["spec/{{variable}}_*", "data/**/*"]
+outputs = ["code/{{variable}}_fast.py", "output/{{variable}}_fast.csv"]
+review = true
+
+[[step]]
+name = "slow_build"
+kind = "task"
+role = "author"
+prompt = "author_slow_build.md"
+inputs = ["spec/{{variable}}_*", "data/**/*"]
+outputs = ["code/{{variable}}_slow.py", "output/{{variable}}_slow.csv"]
+
+[[step]]
+name = "blind_rebuild"
+kind = "task"
+role = "builder"
+prompt = "builder_blind.md"
+isolated = true
+inputs = ["spec/{{variable}}_definition.md", "spec/{{variable}}_keys.json", "data/**/*"]
+outputs = ["python/{{variable}}_blind.py", "output/{{variable}}_blind.csv"]
+
+[[step]]
+name = "write_checks"
+kind = "task"
+role = "author"
+prompt = "author_checks.md"
+inputs = ["spec/{{variable}}_*", "code/{{variable}}_*"]
+outputs = ["tests/{{variable}}_rules.py"]
+
+[[step]]
+name = "rules"
+kind = "check"
+command = ["python", "tests/{{variable}}_rules.py"]
+fix_rounds = 2
+
+[[step]]
+name = "compare_fast_slow"
+kind = "compare"
+left = "output/{{variable}}_fast.csv"
+right = "output/{{variable}}_slow.csv"
+key_from = "spec/{{variable}}_keys.json"
+
+[[step]]
+name = "compare_fast_blind"
+kind = "compare"
+left = "output/{{variable}}_fast.csv"
+right = "output/{{variable}}_blind.csv"
+key_from = "spec/{{variable}}_keys.json"
+
+[[step]]
+name = "planted_bugs"
+kind = "planted_bugs"
+bugs_file = "report/{{variable}}_planted_bugs.json"
+mutable = ["code/{{variable}}_fast.py"]
+rebuild = ["python", "code/{{variable}}_fast.py"]
+layers = ["compare_fast_slow", "rules", "ai_review"]
+
+[[step]]
+name = "worked_case"
+kind = "human"
+title = "Worked case and snapshot sign-off"
+
+[[step]]
+name = "snapshot"
+kind = "snapshot"
+include = ["output/{{variable}}_fast.csv", "spec/{{variable}}_definition.md"]

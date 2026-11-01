@@ -1,0 +1,10 @@
+# Flags for the subscription programs. Edit if your installed versions differ.
+# Defaults live in src/rlo/models/cli.py; anything here overrides them.
+
+[claude]
+# command = ["claude"]
+# tool_args = ["-p", "--output-format", "json", "--permission-mode", "acceptEdits", "--allowedTools", "Read,Write,Edit,Glob,Grep,Bash(Rscript:*),Bash(python:*),Bash(python3:*)"]
+
+[codex]
+# command = ["codex"]
+# output_schema_flag = "--output-schema"   # uncomment if your Codex version accepts a JSON schema

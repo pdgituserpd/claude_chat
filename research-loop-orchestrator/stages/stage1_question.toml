@@ -1,0 +1,27 @@
+# Stage 1: research question. The AI brainstorms from the master literature files and scores
+# contribution potential. The reviewer critiques. Pouya picks at gate 1. `variable` = paper id.
+title = "Research question"
+gate_no = 1
+reviewer_prompt = "reviewer.md"
+judge_prompt = "judge.md"
+review_rounds = 2
+
+[[step]]
+name = "brainstorm"
+kind = "task"
+role = "author"
+prompt = "author_stage1.md"
+inputs = ["literature/**/*", "question/**/*", "README.md"]
+outputs = ["question/{{variable}}_candidates.md", "question/{{variable}}_choices.json"]
+review = true
+gate_items_file = "question/{{variable}}_choices.json"
+
+[[step]]
+name = "gate1"
+kind = "human"
+title = "Pick the research question"
+
+[[step]]
+name = "snapshot"
+kind = "snapshot"
+include = ["question/{{variable}}_*"]

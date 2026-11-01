@@ -1,19 +1,39 @@
-# Stage 2: measures. Ends in human gate 2 (Pouya decides every open choice).
+# Stage 2: measures. Precedent first, then every open choice listed; Pouya decides each at gate 2.
 title = "Measures: precedent, definition and open choices"
-inputs = ["spec/**/*", "README.md", "logs/decision_log.jsonl", "literature/**/*"]
-outputs = ["spec/**/*"]
-author_prompt = "author_stage2.md"
+gate_no = 2
 reviewer_prompt = "reviewer.md"
 judge_prompt = "judge.md"
-gate = "human"
-gate_items_file = "spec/open_choices.json"
 review_rounds = 2
+
+[[step]]
+name = "define"
+kind = "task"
+role = "author"
+prompt = "author_stage2.md"
+inputs = ["spec/**/*", "README.md", "logs/decision_log.jsonl", "literature/**/*"]
+outputs = ["spec/{{variable}}_definition.md", "spec/{{variable}}_choices.json", "spec/{{variable}}_keys.json"]
+review = true
+gate_items_file = "spec/{{variable}}_choices.json"
+
+[[step]]
+name = "gate2"
+kind = "human"
+title = "Decide every open choice; approve which variables are key"
+
+[[step]]
+name = "apply_decisions"
+kind = "task"
+role = "author"
+prompt = "author_stage2_apply.md"
+inputs = ["spec/**/*", "logs/decision_log.jsonl"]
+outputs = ["spec/{{variable}}_definition.md"]
+review = false
+
+[[step]]
+name = "snapshot"
+kind = "snapshot"
+include = ["spec/{{variable}}_*"]
 
 [budget]
 max_model_calls = 40
 max_tool_calls = 200
-
-[models]
-author = "claude-opus-5-5"
-reviewer = "gpt-5"
-judge = "claude-opus-5-5"

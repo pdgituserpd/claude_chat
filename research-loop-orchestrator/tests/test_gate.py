@@ -1,42 +1,54 @@
 import unittest
 
-from rlo.gate import GateItem, parse, render, unanswered
+from rlo.gate import NO_DEFAULT, GateItem, parse, render, unanswered
+
+META = dict(gate_no=2, title="Measures", stage="stage2_measures", variable="x", when="2026-11-01T00:00:00+00:00")
 
 
-class GateRoundTrip(unittest.TestCase):
-    def setUp(self):
-        self.items = [
-            GateItem(id="C1", item="Year basis", options=["grant year", "filing year"], default="filing year",
-                     precedent="Arts & Veugelers 2015", reason="invention timing"),
-            GateItem(id="DISPUTE-F3", item="Panel edge", options=["author", "reviewer", "other"], default="",
-                     precedent="", reason="first year inflated", source="dispute",
-                     positions={"author": "flag first two years", "reviewer": "drop first k years"}),
-        ]
-        self.meta = dict(gate_no=2, title="Measures", stage="stage2_measures", variable="x", when="2026-10-28T00:00:00+00:00")
-
-    def test_render_then_parse_preserves_fields(self):
-        text = render(self.items, **self.meta)
+class DefaultRule(unittest.TestCase):
+    def test_default_shown_only_with_direct_precedent(self):
+        direct = GateItem(id="C1", item="Year basis", options=["grant", "filing"], default="filing",
+                          precedent="Arts & Veugelers 2015", precedent_type="direct", reason="r")
+        closest = GateItem(id="C2", item="Classes", options=["first", "all"], default="all",
+                           precedent="Benner 2002 (closest)", precedent_type="closest", reason="r")
+        none = GateItem(id="C3", item="Sample size", options=["100", "300"], default="300", precedent_type="none")
+        text = render([direct, closest, none], **META)
+        self.assertIn("AI default: filing", text)
+        self.assertEqual(text.count(NO_DEFAULT), 2)
         back = parse(text)
-        self.assertEqual([i.id for i in back], ["C1", "DISPUTE-F3"])
-        self.assertEqual(back[0].options, ["grant year", "filing year"])
-        self.assertEqual(back[0].default, "filing year")
-        self.assertEqual(back[1].positions["reviewer"], "drop first k years")
-        self.assertEqual(unanswered(back), ["C1", "DISPUTE-F3"])
+        self.assertEqual(back[0].shown_default(), "filing")
+        self.assertEqual(back[1].shown_default(), "")
+        self.assertEqual(back[2].shown_default(), "")
+        self.assertEqual([b.precedent_type for b in back], ["direct", "closest", "none"])
 
-    def test_filled_choices_are_read_back(self):
-        text = render(self.items, **self.meta)
-        text = text.replace("Choice: \nNote: \n\n## DISPUTE", "Choice: grant year\nNote: I prefer grant year here\n\n## DISPUTE", 1)
+    def test_outcomes(self):
+        it = GateItem(id="C1", item="i", options=["a", "b"], default="a", precedent="p", precedent_type="direct")
+        it.choice = "a"
+        self.assertEqual(it.outcome(), "accepted_default")
+        it.choice = "b"
+        self.assertEqual(it.outcome(), "overruled_default")
+        it2 = GateItem(id="C2", item="i", options=["a", "b"], default="a", precedent_type="closest", choice="a")
+        self.assertEqual(it2.outcome(), "chose")
+
+    def test_round_trip_and_fill(self):
+        items = [GateItem(id="C1", item="Year basis", options=["grant", "filing"], default="filing", precedent="AV 2015",
+                          precedent_type="direct", reason="timing"),
+                 GateItem(id="DISPUTE-F3", item="Panel edge", options=["author", "reviewer", "other"], source="dispute",
+                          reason="first year inflated", positions={"author": "flag two years", "reviewer": "drop k years"})]
+        text = "notes on top\n\n" + render(items, **META) + "\ntrailing remark\n"
+        back = parse(text)
+        self.assertEqual(unanswered(back), ["C1", "DISPUTE-F3"])
+        self.assertEqual(back[1].positions["reviewer"], "drop k years")
+        text = text.replace("Choice: \nNote: \n\n## DISPUTE", "Choice: grant\nNote: prefer grant\n\n## DISPUTE", 1)
         text = text.replace("Choice: \nNote: ", "Choice: author\nNote: ")
         back = parse(text)
         self.assertEqual(unanswered(back), [])
-        self.assertEqual(back[0].choice, "grant year")
-        self.assertEqual(back[0].note, "I prefer grant year here")
-        self.assertEqual(back[1].choice, "author")
+        self.assertEqual(back[0].outcome(), "overruled_default")
+        self.assertEqual(back[0].note, "prefer grant")
 
-    def test_prose_edits_do_not_break_parsing(self):
-        text = render(self.items, **self.meta)
-        text = "Some notes I typed at the top.\n\n" + text + "\n\nAnd a trailing remark.\n"
-        self.assertEqual(len(parse(text)), 2)
+    def test_bad_precedent_type_rejected(self):
+        with self.assertRaises(ValueError):
+            GateItem.from_choice_dict({"id": "C1", "item": "i", "options": ["a"], "precedent_type": "strong"})
 
 
 if __name__ == "__main__":

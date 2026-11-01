@@ -1,0 +1,1 @@
+Write the light checks for the control `{{variable}}`: `tests/{{variable}}_rules.R` (one row per unit, bounds, missing exactly when expected, out-of-window data ignored) and `tests/{{variable}}_data_checks.R` (unique keys, row counts, value ranges, missing shares, no infinite values) on `output/{{variable}}_fast.csv`. Each exits non-zero on failure. Run them once. Stop.

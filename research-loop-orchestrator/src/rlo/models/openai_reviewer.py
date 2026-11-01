@@ -1,4 +1,4 @@
-"""The second model family as reviewer, via the OpenAI SDK. Reads artifacts, has no tools.
+"""The second model family as reviewer through the OpenAI SDK (API keys). Reads artifacts, no tools.
 
 Not yet exercised against the live API: see README "Status".
 """
@@ -8,7 +8,8 @@ from __future__ import annotations
 import json
 
 from ..calls import CallLog
-from .base import FINDINGS_SCHEMA, Finding
+from .base import CONFIRM_SCHEMA, FINDINGS_SCHEMA, Finding, extract_json
+from .prompts import bundle_artifacts, confirm_prompt, rereview_prompt, review_prompt
 
 
 def _client():
@@ -17,15 +18,9 @@ def _client():
     return OpenAI()
 
 
-def _bundle(artifacts: dict[str, str]) -> str:
-    parts = []
-    for name in sorted(artifacts):
-        parts.append(f"===== FILE: {name} =====\n{artifacts[name]}\n")
-    return "\n".join(parts)
-
-
 class OpenAIReviewer:
     provider = "openai"
+    family = "openai"
 
     def __init__(self, model: str, calls: CallLog, system_prompt: str):
         self.model = model
@@ -33,39 +28,26 @@ class OpenAIReviewer:
         self.system = system_prompt
         self.client = _client()
 
-    def _call(self, user_text: str, role_round: int, context: dict) -> list[Finding]:
+    def _call(self, user_text: str, schema: dict, name: str, rnd: int, context: dict) -> dict:
         response = self.client.responses.create(
-            model=self.model,
-            instructions=self.system,
-            input=user_text,
-            text={"format": {"type": "json_schema", "name": "findings", "schema": FINDINGS_SCHEMA, "strict": True}},
-        )
+            model=self.model, instructions=self.system, input=user_text,
+            text={"format": {"type": "json_schema", "name": name, "schema": schema, "strict": True}})
         raw = response.output_text
-        self.calls.record(
-            role="reviewer", provider=self.provider, model=self.model, stage=context["stage"],
-            variable=context["variable"], round=role_round,
-            request={"input": user_text[:5000] + ("..." if len(user_text) > 5000 else "")},
-            response={"output_text": raw},
-            usage=response.usage.model_dump() if getattr(response, "usage", None) else {},
-        )
-        data = json.loads(raw)
+        self.calls.record(role="reviewer", provider=self.provider, model=self.model, stage=context["stage"],
+                          variable=context["variable"], round=rnd,
+                          request={"input": user_text[:5000] + ("..." if len(user_text) > 5000 else "")},
+                          response={"output_text": raw},
+                          usage=response.usage.model_dump() if getattr(response, "usage", None) else {})
+        return json.loads(extract_json(raw))
+
+    def review(self, artifacts, context) -> list[Finding]:
+        data = self._call(review_prompt(context.get("task", ""), bundle_artifacts(artifacts)), FINDINGS_SCHEMA, "findings", 1, context)
         return [Finding.from_dict(d) for d in data["findings"]]
 
-    def review(self, artifacts: dict[str, str], context: dict) -> list[Finding]:
-        user = (
-            "Review the artifacts below against the task description. Report every deviation from the "
-            "definition, every unstated choice, and every judgment call that should go to the human. "
-            "Do not pad: an empty list is a valid answer.\n\nTASK\n" + context.get("task", "") +
-            "\n\nARTIFACTS\n" + _bundle(artifacts)
-        )
-        return self._call(user, 1, context)
-
     def rereview(self, artifacts, rejected, context) -> list[Finding]:
-        pairs = [{"finding": vars(f), "author_response": vars(r)} for f, r in rejected]
-        user = (
-            "The author rejected the findings below with reasons. Re-examine each against the current artifacts. "
-            "Return only the findings you still stand behind, with the same ids and strengthened evidence; "
-            "drop the ones the author's reason settles.\n\nREJECTED\n" + json.dumps(pairs, indent=2) +
-            "\n\nARTIFACTS\n" + _bundle(artifacts)
-        )
-        return self._call(user, 2, context)
+        data = self._call(rereview_prompt(rejected, bundle_artifacts(artifacts)), FINDINGS_SCHEMA, "findings", 2, context)
+        return [Finding.from_dict(d) for d in data["findings"]]
+
+    def confirm_mutant(self, finding, diff, context) -> tuple[bool, str]:
+        data = self._call(confirm_prompt(finding, diff), CONFIRM_SCHEMA, "confirm", context.get("round", 0), context)
+        return bool(data["matches_claim"]), data["reason"]

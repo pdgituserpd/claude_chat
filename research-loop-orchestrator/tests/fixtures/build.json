@@ -1,0 +1,80 @@
+{
+ "tasks": {
+  "fast_build": {
+   "summary": "fast build",
+   "writes": {
+    "code/x_fast.py": "import csv\nrows = list(csv.DictReader(open('data/data.csv', newline='')))\nimport os; os.makedirs('output', exist_ok=True)\nwith open('output/x_fast.csv', 'w', newline='') as f:\n    w = csv.writer(f); w.writerow(['gvkey', 'year', 'x'])\n    for r in rows:\n        w.writerow([r['gvkey'], r['year'], int(r['value']) * 2])\n        w.writerow([r['gvkey'], r['year'], int(r['value']) * 2])\n",
+    "output/x_fast.csv": "gvkey,year,x\n001001,2001,2\n001001,2001,2\n001001,2002,4\n001001,2002,4\n001002,2001,6\n001002,2001,6\n001002,2003,8\n001002,2003,8\n"
+   }
+  },
+  "slow_build": {
+   "summary": "slow build",
+   "writes": {
+    "code/x_slow.py": "import csv\nrows = list(csv.DictReader(open('data/data.csv', newline='')))\nimport os; os.makedirs('output', exist_ok=True)\nwith open('output/x_slow.csv', 'w', newline='') as f:\n    w = csv.writer(f); w.writerow(['gvkey', 'year', 'x'])\n    for r in rows:\n        w.writerow([r['gvkey'], r['year'], int(r['value']) * 2])\n",
+    "output/x_slow.csv": "gvkey,year,x\n001001,2001,2\n001001,2002,4\n001002,2001,6\n001002,2003,8\n"
+   }
+  },
+  "blind_rebuild": {
+   "summary": "blind rebuild",
+   "writes": {
+    "python/x_blind.py": "import csv\nrows = list(csv.DictReader(open('data/data.csv', newline='')))\nimport os; os.makedirs('output', exist_ok=True)\nwith open('output/x_blind.csv', 'w', newline='') as f:\n    w = csv.writer(f); w.writerow(['gvkey', 'year', 'x'])\n    for r in rows:\n        w.writerow([r['gvkey'], r['year'], int(r['value']) * 2])\n",
+    "output/x_blind.csv": "gvkey,year,x\n001001,2001,2\n001001,2002,4\n001002,2001,6\n001002,2003,8\n"
+   }
+  },
+  "write_checks": {
+   "summary": "checks",
+   "writes": {
+    "tests/x_rules.py": "import csv, sys\nrows = list(csv.DictReader(open('output/x_fast.csv', newline='')))\nkeys = [(r['gvkey'], r['year']) for r in rows]\nif len(keys) != len(set(keys)): print('duplicate keys'); sys.exit(1)\nif any(int(r['x']) < 0 for r in rows): print('negative'); sys.exit(1)\nprint('rules ok')\n"
+   }
+  },
+  "planted_bugs": {
+   "summary": "drafted bugs",
+   "writes": {
+    "report/x_planted_bugs.json": "{\"bugs\": [{\"id\": \"B1\", \"class\": \"visible only in the data\", \"description\": \"multiply by 3 instead of 2\", \"where\": \"code/x_fast.py\", \"source\": \"E001\"}, {\"id\": \"B2\", \"class\": \"allowed by an unclear definition\", \"description\": \"a change with no effect on output\", \"where\": \"code/x_fast.py\", \"source\": \"class\"}], \"approved_by\": \"\"}"
+   }
+  },
+  "planted_bugs:B1": {
+   "summary": "planted B1",
+   "writes": {
+    "code/x_fast.py": "import csv\nrows = list(csv.DictReader(open('data/data.csv', newline='')))\nimport os; os.makedirs('output', exist_ok=True)\nwith open('output/x_fast.csv', 'w', newline='') as f:\n    w = csv.writer(f); w.writerow(['gvkey', 'year', 'x'])\n    for r in rows:\n        w.writerow([r['gvkey'], r['year'], int(r['value']) * 3])\n"
+   }
+  },
+  "planted_bugs:B2": {
+   "summary": "planted B2",
+   "writes": {
+    "code/x_fast.py": "# tidy\nimport csv\nrows = list(csv.DictReader(open('data/data.csv', newline='')))\nimport os; os.makedirs('output', exist_ok=True)\nwith open('output/x_fast.csv', 'w', newline='') as f:\n    w = csv.writer(f); w.writerow(['gvkey', 'year', 'x'])\n    for r in rows:\n        w.writerow([r['gvkey'], r['year'], int(r['value']) * 2])\n"
+   }
+  }
+ },
+ "check_fixes": {
+  "rules": {
+   "summary": "removed the duplicate write",
+   "writes": {
+    "code/x_fast.py": "import csv\nrows = list(csv.DictReader(open('data/data.csv', newline='')))\nimport os; os.makedirs('output', exist_ok=True)\nwith open('output/x_fast.csv', 'w', newline='') as f:\n    w = csv.writer(f); w.writerow(['gvkey', 'year', 'x'])\n    for r in rows:\n        w.writerow([r['gvkey'], r['year'], int(r['value']) * 2])\n",
+    "output/x_fast.csv": "gvkey,year,x\n001001,2001,2\n001001,2002,4\n001002,2001,6\n001002,2003,8\n"
+   }
+  },
+  "planted_bugs": {
+   "summary": "could not think of a check for a no-op change",
+   "writes": {}
+  }
+ },
+ "reviews": {
+  "fast_build": [
+   []
+  ],
+  "planted_bugs": [
+   [
+    {
+     "id": "F9",
+     "severity": "medium",
+     "kind": "error",
+     "claim": "unrelated remark",
+     "evidence": "code/other.py",
+     "proposed_fix": "fix",
+     "checkable_by": "none"
+    }
+   ]
+  ]
+ }
+}

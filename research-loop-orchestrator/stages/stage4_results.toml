@@ -1,0 +1,28 @@
+# Stage 4: results. Hostile review by the second family, the change classification with its
+# two tests, and the round's call. `variable` = paper id. Re-run once per round of results.
+title = "Results: hostile review, change classification and the round's call"
+gate_no = 4
+reviewer_prompt = "hostile_reviewer.md"
+judge_prompt = "judge.md"
+review_rounds = 2
+
+[[step]]
+name = "report"
+kind = "task"
+role = "author"
+prompt = "author_stage4.md"
+inputs = ["results/**/*", "output/**/*", "design/**/*", "plan/**/*", "logs/*.jsonl", "README.md"]
+outputs = ["results/{{variable}}_report.md", "results/{{variable}}_choices.json"]
+review = true
+gate_items_file = "results/{{variable}}_choices.json"
+
+[[step]]
+name = "gate4"
+kind = "human"
+title = "Decide what the results mean and make the round's call"
+recycle_rule = true
+
+[[step]]
+name = "snapshot"
+kind = "snapshot"
+include = ["results/{{variable}}_*"]

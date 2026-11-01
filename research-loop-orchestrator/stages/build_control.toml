@@ -1,0 +1,38 @@
+# Light checks for a control variable: data checks, rules and a snapshot. No worked case.
+title = "Build and check a control"
+gate_no = 2
+reviewer_prompt = "reviewer_code.md"
+judge_prompt = "judge.md"
+review_rounds = 1
+
+[[step]]
+name = "fast_build"
+kind = "task"
+role = "author"
+prompt = "author_fast_build.md"
+inputs = ["spec/{{variable}}_*", "R/**/*", "data/**/*"]
+outputs = ["R/{{variable}}_fast.R", "output/{{variable}}_fast.csv"]
+review = false
+
+[[step]]
+name = "write_checks"
+kind = "task"
+role = "author"
+prompt = "author_checks_light.md"
+inputs = ["spec/{{variable}}_*", "R/{{variable}}_*", "tests/**/*"]
+outputs = ["tests/{{variable}}_rules.R", "tests/{{variable}}_data_checks.R"]
+
+[[step]]
+name = "rules"
+kind = "check"
+command = ["Rscript", "tests/{{variable}}_rules.R"]
+
+[[step]]
+name = "data_checks"
+kind = "check"
+command = ["Rscript", "tests/{{variable}}_data_checks.R"]
+
+[[step]]
+name = "snapshot"
+kind = "snapshot"
+include = ["output/{{variable}}_fast.csv", "spec/{{variable}}_definition.md"]

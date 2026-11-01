@@ -1,0 +1,26 @@
+# Stage 3: statistical design and the dated plan. `variable` = paper id.
+title = "Statistical design and the dated plan"
+gate_no = 3
+reviewer_prompt = "reviewer.md"
+judge_prompt = "judge.md"
+review_rounds = 2
+
+[[step]]
+name = "design"
+kind = "task"
+role = "author"
+prompt = "author_stage3.md"
+inputs = ["spec/**/*", "design/**/*", "question/**/*", "logs/decision_log.jsonl", "literature/**/*", "README.md"]
+outputs = ["design/{{variable}}_design.md", "design/{{variable}}_choices.json", "plan/{{variable}}_plan.md"]
+review = true
+gate_items_file = "design/{{variable}}_choices.json"
+
+[[step]]
+name = "gate3"
+kind = "human"
+title = "Approve the model, estimator, robustness plan, kill criteria and the dated plan"
+
+[[step]]
+name = "snapshot"
+kind = "snapshot"
+include = ["design/{{variable}}_*", "plan/{{variable}}_plan.md"]

@@ -24,7 +24,8 @@ def fingerprint_outputs(target: Path, globs: list[str]) -> dict[str, str]:
     out: dict[str, str] = {}
     for g in globs:
         for p in sorted(target.glob(g)):
-            if p.is_file() and ".git" not in p.parts and ".rlo" not in p.parts:
+            rel = p.relative_to(target).parts
+            if p.is_file() and ".git" not in rel and ".rlo" not in rel:
                 out[str(p.relative_to(target))] = sha256_file(p)
     return out
 

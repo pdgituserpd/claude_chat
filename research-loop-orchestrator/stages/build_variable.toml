@@ -1,0 +1,107 @@
+# Full checks for a key variable. Runs after gate 2. Paths follow these conventions in the
+# target repository:
+#   spec/{{variable}}_definition.md     the approved definition (only input to the blind rebuild)
+#   spec/{{variable}}_keys.json         {"key": ["gvkey", "year"]} the unit key of the output
+#   R/{{variable}}_fast.R  -> output/{{variable}}_fast.csv
+#   R/{{variable}}_slow.R  -> output/{{variable}}_slow.csv
+#   python/{{variable}}_blind.py -> output/{{variable}}_blind.csv
+#   tests/{{variable}}_fake_cases.R, tests/{{variable}}_rules.R, tests/{{variable}}_data_checks.R,
+#   tests/{{variable}}_source_check.R   each exits non-zero on failure
+title = "Build and check a key variable"
+gate_no = 2
+reviewer_prompt = "reviewer_code.md"
+judge_prompt = "judge.md"
+review_rounds = 2
+
+[[step]]
+name = "fast_build"
+kind = "task"
+role = "author"
+prompt = "author_fast_build.md"
+inputs = ["spec/{{variable}}_*", "R/**/*", "data/**/*", "output/**/*"]
+outputs = ["R/{{variable}}_fast.R", "output/{{variable}}_fast.csv"]
+review = true
+
+[[step]]
+name = "slow_build"
+kind = "task"
+role = "author"
+prompt = "author_slow_build.md"
+inputs = ["spec/{{variable}}_*", "R/**/*", "data/**/*"]
+outputs = ["R/{{variable}}_slow.R", "output/{{variable}}_slow.csv"]
+
+[[step]]
+name = "blind_rebuild"
+kind = "task"
+role = "builder"
+prompt = "builder_blind.md"
+isolated = true
+inputs = ["spec/{{variable}}_definition.md", "spec/{{variable}}_keys.json", "data/**/*"]
+outputs = ["python/{{variable}}_blind.py", "output/{{variable}}_blind.csv"]
+
+[[step]]
+name = "compare_fast_slow"
+kind = "compare"
+left = "output/{{variable}}_fast.csv"
+right = "output/{{variable}}_slow.csv"
+key_from = "spec/{{variable}}_keys.json"
+
+[[step]]
+name = "compare_fast_blind"
+kind = "compare"
+left = "output/{{variable}}_fast.csv"
+right = "output/{{variable}}_blind.csv"
+key_from = "spec/{{variable}}_keys.json"
+
+[[step]]
+name = "write_checks"
+kind = "task"
+role = "author"
+prompt = "author_checks.md"
+inputs = ["spec/{{variable}}_*", "R/{{variable}}_*", "tests/**/*", "logs/decision_log.jsonl"]
+outputs = ["tests/{{variable}}_fake_cases.R", "tests/{{variable}}_rules.R", "tests/{{variable}}_data_checks.R", "tests/{{variable}}_source_check.R"]
+review = true
+
+[[step]]
+name = "fake_cases"
+kind = "check"
+command = ["Rscript", "tests/{{variable}}_fake_cases.R"]
+
+[[step]]
+name = "rules"
+kind = "check"
+command = ["Rscript", "tests/{{variable}}_rules.R"]
+
+[[step]]
+name = "data_checks"
+kind = "check"
+command = ["Rscript", "tests/{{variable}}_data_checks.R"]
+
+[[step]]
+name = "source_check"
+kind = "check"
+command = ["Rscript", "tests/{{variable}}_source_check.R"]
+fix_rounds = 1
+
+[[step]]
+name = "planted_bugs"
+kind = "planted_bugs"
+bugs_file = "report/{{variable}}_planted_bugs.json"
+mutable = ["R/{{variable}}_fast.R"]
+rebuild = ["Rscript", "R/{{variable}}_fast.R"]
+layers = ["compare_fast_slow", "compare_fast_blind", "fake_cases", "rules", "data_checks", "ai_review"]
+copy_exclude = [".git", ".rlo"]
+
+[[step]]
+name = "worked_case"
+kind = "human"
+title = "Worked case: walk one real unit through the slow build and the definition, then sign off the snapshot"
+
+[[step]]
+name = "snapshot"
+kind = "snapshot"
+include = ["output/{{variable}}_fast.csv", "spec/{{variable}}_definition.md"]
+
+[budget]
+max_model_calls = 60
+max_tool_calls = 400
