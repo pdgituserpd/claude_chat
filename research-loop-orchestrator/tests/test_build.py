@@ -138,3 +138,32 @@ class BuildStage(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RerunAfterStop(unittest.TestCase):
+    def test_hand_fix_then_rerun_gets_fresh_attempts(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            target = Path(tmp) / "t"
+            shutil.copytree(TARGET, target)
+            fx = json.loads(FIX.read_text())
+            fx["check_fixes"]["rules"] = {"writes": {}}  # the author cannot fix it
+            fxp = Path(tmp) / "fx.json"
+            fxp.write_text(json.dumps(fx))
+            cfg = load_stage("build_test", "x", stages_dir=STAGES)
+            store = Store(target)
+            calls = CallLog(store.calls_dir)
+            roles = build_roles("fixtures", cfg, store, calls, str(fxp))
+            st = Engine(cfg, "x", roles, store, calls).run()
+            self.assertEqual(st.status, "stopped")
+            self.assertEqual(st.current_step, "rules")
+            self.assertEqual(st.progress["rules"]["attempt"], 2)
+            # fix by hand, rerun: the check passes on the first try and the stage moves on
+            good = json.loads(FIX.read_text())["check_fixes"]["rules"]["writes"]
+            for rel, content in good.items():
+                (target / rel).write_text(content)
+            st = Engine(cfg, "x", roles, store, calls).run()
+            self.assertIn("rules", st.steps_done)
+            self.assertEqual(st.current_step, "planted_bugs")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)

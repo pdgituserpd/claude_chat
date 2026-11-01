@@ -76,6 +76,8 @@ class Engine:
                                "Fill it in and run `rlo approve`.")
         if st.status == "done":
             raise RuntimeError(f"{self.cfg.name}/{self.variable} is already done; use `rlo reset` to run it again")
+        if st.status == "stopped" and st.current_step in st.progress:
+            st.progress[st.current_step].pop("attempt", None)
         st.touch("running")
         st.manual_file = None
         self.store.save(st)
@@ -185,7 +187,7 @@ class Engine:
                 break
             fkey = f"r{rnd}_findings"
             if fkey not in rv:
-                artifacts = collect_artifacts(workdir, step.outputs)
+                artifacts = collect_artifacts(workdir, step.outputs + self._definition_globs())
                 if rnd == 1:
                     findings = reviewer.review(artifacts, ctx)
                 else:
